@@ -1,0 +1,39 @@
+# 依赖
+node_modules/
+package-lock.json
+
+# 测试文件
+tests/
+create-test-files.js
+
+# 测试页面
+public/generate-test-files.html
+public/auto-test.html
+
+# 文档（不需要上传的）
+测试报告.md
+完整测试报告.md
+项目完成报告.md
+项目总结.md
+使用指南.md
+演示脚本.md
+快速启动.md
+维护指南.md
+交付说明*.md
+截图操作指南.md
+
+# 截图
+*.png
+*.jpg
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志
+*.log
+npm-debug.log*
+
+# 测试生成的文件
+test-files/

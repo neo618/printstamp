@@ -1,0 +1,33 @@
+{
+  "name": "pdf-stamp-tool",
+  "version": "1.0.0",
+  "description": "PDF 透明 PNG 电子印章网页工具 - 纯前端实现",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "dev": "npx http-server public -p 3000 -o",
+    "build": "echo '纯前端项目，无需构建'"
+  },
+  "keywords": [
+    "pdf",
+    "stamp",
+    "电子印章",
+    "png",
+    "纯前端"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "canvas": "^2.11.2",
+    "http-server": "^14.1.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.0.379"
+  }
+}
