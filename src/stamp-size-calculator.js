@@ -11,6 +11,10 @@ export class StampSizeCalculator {
   // 支持的印章尺寸（毫米）
   static VALID_SIZES = [38, 40, 42];
 
+  // 自定义尺寸范围
+  static MIN_CUSTOM_SIZE = 20;
+  static MAX_CUSTOM_SIZE = 100;
+
   // 默认尺寸
   static DEFAULT_SIZE_MM = 40;
 
@@ -40,12 +44,13 @@ export class StampSizeCalculator {
   /**
    * 验证尺寸是否支持
    * @param {number} size - 尺寸（毫米）
+   * @param {boolean} allowCustom - 是否允许自定义尺寸
    * @throws {Error} 不支持的尺寸
    */
-  static validateSize(size) {
-    if (!this.VALID_SIZES.includes(size)) {
-      throw new Error(`不支持的尺寸：${size}mm，仅支持 ${this.VALID_SIZES.join('/')}mm`);
-    }
+  static validateSize(size, allowCustom = false) {
+    if (this.VALID_SIZES.includes(size)) return;
+    if (allowCustom && size >= this.MIN_CUSTOM_SIZE && size <= this.MAX_CUSTOM_SIZE) return;
+    throw new Error(`尺寸 ${size}mm 超出允许范围（${this.MIN_CUSTOM_SIZE}-${this.MAX_CUSTOM_SIZE}mm）`);
   }
 
   /**

@@ -3,58 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF 透明 PNG 电子印章工具</title>
+  <title>PDF盖章助手</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    :root {
+      --primary: #6366f1;
+      --primary-light: #a5b4fc;
+      --primary-dark: #4f46e5;
+      --primary-bg: #eef2ff;
+      --accent: #0891b2;
+      --success: #059669;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --gray-50: #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+      --shadow-xl: 0 20px 60px rgba(0,0,0,0.15);
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: var(--gray-100);
       min-height: 100vh;
-      padding: 20px;
+      padding: 24px;
+      color: var(--gray-800);
     }
 
     .container {
       max-width: 1400px;
       margin: 0 auto;
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-xl);
       overflow: hidden;
     }
 
     .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
       color: white;
-      padding: 24px 32px;
+      padding: 28px 36px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
     }
-
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 60%);
+    }
     .header h1 {
-      font-size: 28px;
-      margin-bottom: 8px;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      position: relative;
     }
-
     .header p {
-      opacity: 0.9;
+      opacity: 0.85;
       font-size: 14px;
+      margin-top: 6px;
+      position: relative;
+      font-weight: 400;
+      letter-spacing: 0.3px;
     }
 
     .main-content {
       display: grid;
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 270px 1fr;
       min-height: 700px;
     }
 
-    /* 左侧面板 */
+    /* ===== 左侧面板 ===== */
     .sidebar {
-      background: #f8f9fa;
-      border-right: 1px solid #e9ecef;
-      padding: 20px;
+      background: var(--gray-50);
+      border-right: 1px solid var(--gray-200);
+      padding: 20px 16px;
       overflow-y: auto;
     }
 
@@ -63,157 +102,201 @@
     }
 
     .panel-title {
-      font-size: 16px;
+      font-size: 13px;
       font-weight: 600;
-      color: #333;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
       margin-bottom: 12px;
       padding-bottom: 8px;
-      border-bottom: 2px solid #667eea;
+      border-bottom: 1.5px solid var(--gray-200);
     }
 
-    /* 按钮样式 */
+    /* ===== 按钮 ===== */
     .btn {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       padding: 10px 20px;
       border: none;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
       font-size: 14px;
-      transition: all 0.3s;
+      font-weight: 500;
+      transition: var(--transition);
       width: 100%;
       margin-bottom: 8px;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--primary);
       color: white;
     }
-
     .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      background: var(--primary-dark);
+      box-shadow: var(--shadow-md);
     }
 
     .btn-secondary {
-      background: #6c757d;
-      color: white;
+      background: var(--gray-200);
+      color: var(--gray-700);
+    }
+    .btn-secondary:hover {
+      background: var(--gray-300);
     }
 
     .btn-success {
-      background: #28a745;
+      background: var(--success);
       color: white;
+    }
+    .btn-success:hover:not(:disabled) {
+      background: #047857;
+      box-shadow: var(--shadow-md);
     }
 
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+      box-shadow: none;
     }
 
-    /* 印章模板列表 */
+    /* ===== 印章模板 ===== */
     .stamp-list {
       max-height: 300px;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
+    .stamp-list::-webkit-scrollbar { width: 4px; }
+    .stamp-list::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
 
     .stamp-item {
       background: white;
-      border: 2px solid #e9ecef;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      padding: 10px;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: var(--transition);
     }
-
     .stamp-item:hover {
-      border-color: #667eea;
-      transform: translateY(-2px);
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow-sm);
     }
-
     .stamp-item.selected {
-      border-color: #667eea;
-      background: #f0f3ff;
+      border-color: var(--primary);
+      background: var(--primary-bg);
+      box-shadow: 0 0 0 2px rgba(79,70,229,0.15);
     }
 
     .stamp-item img {
       max-width: 100%;
       height: auto;
       display: block;
-      margin: 0 auto 8px;
+      margin: 0 auto 6px;
+      max-height: 60px;
     }
-
     .stamp-item-name {
-      font-size: 13px;
+      font-size: 12px;
       text-align: center;
-      color: #333;
+      color: var(--gray-700);
       font-weight: 500;
     }
-
     .stamp-item-actions {
       display: flex;
       gap: 4px;
-      margin-top: 8px;
+      margin-top: 6px;
     }
-
     .stamp-item-actions button {
       flex: 1;
-      padding: 4px;
-      font-size: 12px;
+      padding: 3px 6px;
+      font-size: 11px;
+      font-weight: 500;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      transition: var(--transition);
     }
+    .btn-rename { background: #e0f2fe; color: #0369a1; }
+    .btn-rename:hover { background: #bae6fd; }
+    .btn-delete { background: #fce4ec; color: #c62828; }
+    .btn-delete:hover { background: #f8bbd0; }
 
-    .btn-rename {
-      background: #17a2b8;
-      color: white;
-    }
-
-    .btn-delete {
-      background: #dc3545;
-      color: white;
-    }
-
-    /* 尺寸选择 */
+    /* ===== 尺寸选择 ===== */
     .size-selector {
       display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
+      gap: 6px;
+      margin-bottom: 8px;
     }
-
     .size-option {
       flex: 1;
-      padding: 8px;
-      border: 2px solid #e9ecef;
-      border-radius: 6px;
+      padding: 5px 4px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
       text-align: center;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: var(--transition);
       font-size: 13px;
+      font-weight: 500;
+      color: var(--gray-600);
+      background: white;
     }
-
     .size-option:hover {
-      border-color: #667eea;
+      border-color: var(--primary-light);
+      color: var(--primary);
     }
-
     .size-option.selected {
-      border-color: #667eea;
-      background: #f0f3ff;
+      border-color: var(--primary);
+      background: var(--primary-bg);
+      color: var(--primary);
       font-weight: 600;
     }
 
-    /* 右侧主区域 */
+    .custom-size-input {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .custom-size-input input {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1.5px solid var(--primary);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      text-align: center;
+      outline: none;
+      transition: var(--transition);
+    }
+    .custom-size-input input:focus {
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+    }
+    .custom-size-input span {
+      font-size: 13px;
+      color: var(--gray-500);
+    }
+
+    .size-guide {
+      font-size: 11px;
+      color: var(--gray-400);
+      line-height: 1.7;
+      padding-top: 4px;
+    }
+
+    /* ===== 右侧主区域 ===== */
     .main-area {
-      padding: 20px;
-      background: #f8f9fa;
+      padding: 24px;
+      background: var(--gray-50);
       overflow: auto;
     }
 
-    /* PDF 预览区域 */
+    /* ===== PDF 预览 ===== */
     .pdf-preview {
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
       padding: 20px;
       text-align: center;
     }
@@ -221,193 +304,198 @@
     .pdf-canvas-container {
       display: inline-block;
       position: relative;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: var(--shadow-md);
+      border-radius: 4px;
+      overflow: hidden;
     }
 
-    #pdfCanvas {
-      display: block;
-    }
+    #pdfCanvas { display: block; }
 
-    /* 印章图层 */
+    /* ===== 印章图层 ===== */
     .stamp-layer {
       position: absolute;
       cursor: move;
       user-select: none;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
     }
-
     .stamp-layer:hover {
-      outline: 2px dashed #667eea;
+      outline: 2px dashed var(--primary-light);
     }
-
-    .stamp-layer.resizing {
-      cursor: nwse-resize;
+    .stamp-layer.active {
+      outline: 2px solid var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.2);
     }
+    .stamp-layer.resizing { cursor: nwse-resize; }
 
-    /* 印章调整手柄 */
+    /* 删除按钮 */
+    .stamp-delete-btn {
+      position: absolute;
+      top: -9px;
+      right: -9px;
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 50%;
+      background: var(--danger);
+      color: white;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 10;
+      box-shadow: 0 2px 6px rgba(220,38,38,0.4);
+      transition: transform 0.15s;
+    }
+    .stamp-delete-btn:hover { transform: scale(1.25); }
+    .stamp-layer:hover .stamp-delete-btn,
+    .stamp-layer.active .stamp-delete-btn { display: flex; }
+
+    /* 调整手柄 */
     .resize-handle {
       position: absolute;
-      width: 12px;
-      height: 12px;
-      background: #667eea;
-      border: 2px solid white;
+      width: 10px;
+      height: 10px;
+      background: white;
+      border: 2px solid var(--primary);
       border-radius: 50%;
       display: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-
-    .stamp-layer:hover .resize-handle {
-      display: block;
-    }
-
+    .stamp-layer:hover .resize-handle { display: block; }
     .resize-handle.se {
-      right: -6px;
-      bottom: -6px;
+      right: -5px;
+      bottom: -5px;
       cursor: nwse-resize;
     }
 
-    /* 翻页控制 */
+    /* ===== 翻页控制 ===== */
     .page-controls {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
       margin-bottom: 16px;
-      padding: 12px;
-      background: white;
-      border-radius: 8px;
+      padding: 10px 16px;
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--gray-200);
     }
-
     .page-controls button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      background: #667eea;
-      color: white;
+      padding: 7px 14px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      background: white;
+      color: var(--gray-700);
       cursor: pointer;
-      font-size: 14px;
-      transition: all 0.3s;
+      font-size: 13px;
+      font-weight: 500;
+      transition: var(--transition);
     }
-
     .page-controls button:hover:not(:disabled) {
-      background: #5568d3;
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-bg);
     }
-
     .page-controls button:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
     }
-
     .page-input {
-      width: 60px;
-      padding: 8px;
-      border: 2px solid #e9ecef;
-      border-radius: 6px;
+      width: 56px;
+      padding: 6px 8px;
+      border: 1.5px solid var(--gray-200);
+      border-radius: var(--radius-sm);
       text-align: center;
       font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-800);
+      outline: none;
+      transition: var(--transition);
     }
-
+    .page-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+    }
     .page-info {
       font-size: 14px;
-      color: #666;
+      color: var(--gray-500);
+      font-weight: 500;
     }
 
-    /* 空状态 */
+    /* ===== 空状态 ===== */
     .empty-state {
       text-align: center;
-      padding: 60px 20px;
-      color: #999;
+      padding: 80px 20px;
+      color: var(--gray-400);
     }
-
-    .empty-state-icon {
-      font-size: 64px;
-      margin-bottom: 16px;
-    }
-
+    .empty-state-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.6; }
     .empty-state h3 {
-      font-size: 20px;
+      font-size: 18px;
+      font-weight: 600;
       margin-bottom: 8px;
-      color: #666;
+      color: var(--gray-600);
     }
+    .empty-state p { font-size: 14px; color: var(--gray-400); }
 
-    /* 文件上传 */
+    /* ===== 文件上传 ===== */
     .file-upload {
-      border: 2px dashed #667eea;
-      border-radius: 8px;
-      padding: 40px;
+      border: 2px dashed var(--gray-300);
+      border-radius: var(--radius-md);
+      padding: 28px 20px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: var(--transition);
       background: white;
     }
-
     .file-upload:hover {
-      border-color: #764ba2;
-      background: #f8f9ff;
+      border-color: var(--primary-light);
+      background: var(--primary-bg);
     }
+    .file-upload input { display: none; }
+    .file-upload-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.5; }
 
-    .file-upload input {
-      display: none;
-    }
+    /* ===== 通用 ===== */
+    .hidden { display: none !important; }
 
-    .file-upload-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
-    }
-
-    /* 隐藏元素 */
-    .hidden {
-      display: none !important;
-    }
-
-    /* 提示信息 */
+    /* ===== Toast ===== */
     .toast {
       position: fixed;
       top: 20px;
       right: 20px;
       padding: 12px 24px;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       color: white;
       font-size: 14px;
+      font-weight: 500;
       z-index: 1000;
-      animation: slideIn 0.3s ease;
+      animation: slideIn 0.25s ease;
+      box-shadow: var(--shadow-lg);
     }
-
-    .toast-success {
-      background: #28a745;
-    }
-
-    .toast-error {
-      background: #dc3545;
-    }
-
-    .toast-info {
-      background: #17a2b8;
-    }
+    .toast-success { background: var(--success); }
+    .toast-error { background: var(--danger); }
+    .toast-info { background: var(--accent); }
 
     @keyframes slideIn {
-      from {
-        transform: translateX(400px);
-        opacity: 0;
-      }
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
     }
 
-    /* 导出按钮区域 */
+    /* ===== 导出区域 ===== */
     .export-area {
       margin-top: 20px;
       padding-top: 20px;
-      border-top: 1px solid #e9ecef;
+      border-top: 1px solid var(--gray-200);
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>📮 PDF 透明 PNG 电子印章工具</h1>
-      <p>纯前端实现 · 安全本地处理 · 高清无水印导出</p>
+      <h1>📮 PDF盖章助手</h1>
+      <p>上传PDF → 选择印章 → 点击盖章 → 导出下载</p>
     </div>
 
     <div class="main-content">
@@ -443,12 +531,21 @@
         <div class="panel-section">
           <div class="panel-title">📏 印章尺寸</div>
           <div class="size-selector">
-            <div class="size-option" data-size="38">38mm</div>
-            <div class="size-option selected" data-size="40">40mm</div>
-            <div class="size-option" data-size="42">42mm</div>
+            <div class="size-option" data-size="38">38</div>
+            <div class="size-option selected" data-size="40">40</div>
+            <div class="size-option" data-size="42">42</div>
+            <div class="size-option size-other" data-size="other">其他</div>
           </div>
-          <div style="font-size: 12px; color: #666;">
-            默认 40mm，自动适配 A4 比例
+          <div class="custom-size-input hidden">
+            <input type="number" id="customSizeInput" min="20" max="100" value="30" placeholder="mm">
+            <span>mm</span>
+          </div>
+          <div style="font-size: 11px; color: #888; line-height: 1.6; padding-top: 4px;">
+            企业公章、合同章多用 42mm<br>
+            普通公章、发票章标准 40mm<br>
+            财务圆章常用 38mm<br>
+            法人私章一般 20~24mm 方形<br>
+            个人姓名章 18~25mm 方形
           </div>
         </div>
 
@@ -496,6 +593,6 @@
   </div>
 
   <!-- 导入模块 -->
-  <script type="module" src="../src/app.js"></script>
+  <script type="module" src="../src/app.js?v=3"></script>
 </body>
 </html>

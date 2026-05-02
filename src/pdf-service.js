@@ -25,17 +25,32 @@ export class PDFService {
     }
 
     try {
-      // 读取文件为 ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
-      this.originalBytes = new Uint8Array(arrayBuffer);
+      // 使用 FileReader 读取文件（比 file.arrayBuffer() 更稳定，避免 buffer 被分离）
+      const arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsArrayBuffer(file);
+      });
+
+      // 将原始数据转为独立副本，彻底切断与浏览器内部 Blob 存储的引用
+      const raw = new Uint8Array(arrayBuffer);
+      this.originalBytes = new Uint8Array(raw.byteLength);
+      this.originalBytes.set(raw);
+
+      // 为 pdf.js 和 pdf-lib 创建各自独立的副本
+      const pdfjsData = new Uint8Array(raw.byteLength);
+      pdfjsData.set(raw);
+      const pdfLibData = new Uint8Array(raw.byteLength);
+      pdfLibData.set(raw);
 
       // 使用 pdf.js 加载文档用于预览
       const pdfjsLib = await this.loadPDFJS();
-      this.pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      this.pdfDoc = await pdfjsLib.getDocument({ data: pdfjsData }).promise;
 
       // 使用 pdf-lib 加载文档用于编辑
       const PDFLib = await this.loadPDFLib();
-      this.pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+      this.pdfLibDoc = await PDFLib.PDFDocument.load(pdfLibData);
 
       this.currentPage = 1;
 
@@ -199,6 +214,13 @@ export class PDFService {
     if (this.stampPositions.length > 0) {
       const PDFLib = await this.loadPDFLib();
 
+      // 计算 CSS 画布与 PDF 坐标之间的转换比例
+      // 使用 pdf.js viewport 在 scale=1 时的尺寸作为 CSS 基准
+      const firstPage = await this.pdfDoc.getPage(1);
+      const viewport = firstPage.getViewport({ scale: 1 });
+      const cssPageWidth = viewport.width;
+      const cssPageHeight = viewport.height;
+
       for (const stampPos of this.stampPositions) {
         // 解码 Base64 图片
         const imageBytes = this.base64ToBytes(stampPos.image);
@@ -209,16 +231,24 @@ export class PDFService {
         const page = pages[stampPos.page - 1];
 
         if (page) {
-          // PDF 坐标系原点在左下角，需要转换
-          const pageHeight = page.getHeight();
-          const x = stampPos.x;
-          const y = pageHeight - stampPos.y - stampPos.height;
+          const pdfPageWidth = page.getWidth();
+          const pdfPageHeight = page.getHeight();
+
+          // CSS 坐标 → PDF 坐标（等比例换算）
+          const scaleX = pdfPageWidth / cssPageWidth;
+          const scaleY = pdfPageHeight / cssPageHeight;
+
+          const pdfWidth = stampPos.width * scaleX;
+          const pdfHeight = stampPos.height * scaleY;
+          const pdfX = stampPos.x * scaleX;
+          // PDF 坐标系原点在左下角，需要 Y 轴翻转
+          const pdfY = pdfPageHeight - stampPos.y * scaleY - pdfHeight;
 
           page.drawImage(pngImage, {
-            x: x,
-            y: y,
-            width: stampPos.width,
-            height: stampPos.height
+            x: pdfX,
+            y: pdfY,
+            width: pdfWidth,
+            height: pdfHeight
           });
         }
       }

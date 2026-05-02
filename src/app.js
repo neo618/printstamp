@@ -14,8 +14,11 @@ class StampApp {
     this.currentStamp = null;
     this.currentStampSize = StampSizeCalculator.getDefaultSize();
     this.isDragging = false;
+    this.isResizing = false;
+    this.resizeStart = null;
     this.dragOffset = { x: 0, y: 0 };
     this.currentStampElement = null;
+    this.activeStampElement = null; // 当前选中（高亮）的印章
 
     this.init();
   }
@@ -66,9 +69,20 @@ class StampApp {
     // 尺寸选择
     document.querySelectorAll('.size-option').forEach(option => {
       option.addEventListener('click', () => {
-        const size = parseInt(option.dataset.size);
-        this.selectSize(size);
+        const raw = option.dataset.size;
+        if (raw === 'other') {
+          this.selectOtherSize();
+        } else {
+          this.selectSize(parseInt(raw));
+        }
       });
+    });
+
+    // 自定义尺寸输入
+    const customInput = document.getElementById('customSizeInput');
+    customInput.addEventListener('change', () => this.applyCustomSize());
+    customInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.applyCustomSize();
     });
 
     // 翻页控制
@@ -89,6 +103,16 @@ class StampApp {
     canvasContainer.addEventListener('mousemove', (e) => this.handleStampMouseMove(e));
     canvasContainer.addEventListener('mouseup', (e) => this.handleStampMouseUp(e));
     canvasContainer.addEventListener('mouseleave', (e) => this.handleStampMouseUp(e));
+
+    // Delete 键删除选中印章
+    document.addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+    // 点击空白区域取消选中
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.stamp-layer') && !e.target.closest('#canvasContainer')) {
+        this.deselectActiveStamp();
+      }
+    });
   }
 
   /**
@@ -222,9 +246,10 @@ class StampApp {
     const currentPage = this.pdfService.currentPage;
     const pageStamps = this.pdfService.stampPositions.filter(s => s.page === currentPage);
 
-    pageStamps.forEach((stampPos, index) => {
+    pageStamps.forEach((stampPos) => {
       const stampEl = this.createStampElement(stampPos.image, stampPos);
-      stampEl.dataset.index = index;
+      // 存储印章在 stampPositions 中的实际索引
+      stampEl.dataset.realIndex = this.pdfService.stampPositions.indexOf(stampPos);
       canvasContainer.appendChild(stampEl);
     });
   }
@@ -244,12 +269,24 @@ class StampApp {
     img.src = imageSrc;
     img.style.width = '100%';
     img.style.height = '100%';
+    img.style.objectFit = 'contain';
     img.style.pointerEvents = 'none';
+    container.appendChild(img);
+
+    // 删除按钮（右上角 ×）
+    const delBtn = document.createElement('button');
+    delBtn.className = 'stamp-delete-btn';
+    delBtn.innerHTML = '×';
+    delBtn.title = '删除印章';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.removeStampFromCanvas(container);
+    });
+    container.appendChild(delBtn);
 
     const handle = document.createElement('div');
     handle.className = 'resize-handle se';
 
-    container.appendChild(img);
     container.appendChild(handle);
 
     return container;
@@ -300,16 +337,24 @@ class StampApp {
   }
 
   /**
-   * 选择尺寸
+   * 选择预设尺寸
    */
-  selectSize(size) {
-    StampSizeCalculator.validateSize(size);
+  selectSize(size, allowCustom = false) {
+    StampSizeCalculator.validateSize(size, allowCustom);
     this.currentStampSize = size;
 
     // 更新 UI
     document.querySelectorAll('.size-option').forEach(option => {
-      option.classList.toggle('selected', parseInt(option.dataset.size) === size);
+      if (option.dataset.size === 'other') {
+        // 自定义尺寸时高亮「其他」
+        option.classList.toggle('selected', allowCustom);
+      } else {
+        option.classList.toggle('selected', parseInt(option.dataset.size) === size);
+      }
     });
+
+    // 隐藏自定义输入
+    document.getElementById('customSizeInput').parentElement.classList.add('hidden');
 
     // 如果已有印章，更新尺寸
     if (this.currentStampElement) {
@@ -320,14 +365,42 @@ class StampApp {
   }
 
   /**
-   * 更新印章尺寸
+   * 选择「其他」——显示自定义输入框
+   */
+  selectOtherSize() {
+    // 取消所有预设高亮，高亮「其他」
+    document.querySelectorAll('.size-option').forEach(option => {
+      option.classList.toggle('selected', option.dataset.size === 'other');
+    });
+
+    const customWrap = document.getElementById('customSizeInput').parentElement;
+    customWrap.classList.remove('hidden');
+    customWrap.querySelector('input').focus();
+  }
+
+  /**
+   * 应用自定义尺寸
+   */
+  applyCustomSize() {
+    const input = document.getElementById('customSizeInput');
+    const val = parseInt(input.value);
+    if (!isNaN(val) && val >= 20 && val <= 100) {
+      this.selectSize(val, true);
+    } else {
+      this.showToast(`请输入 20-100mm 之间的尺寸`, 'error');
+      input.focus();
+    }
+  }
+
+  /**
+   * 更新印章尺寸（CSS 坐标）
    */
   updateStampSize(stampElement) {
-    const canvas = document.getElementById('pdfCanvas');
-    const canvasWidth = canvas.width;
+    const container = document.getElementById('canvasContainer');
+    const cssWidth = container.getBoundingClientRect().width;
     const stampPixels = StampSizeCalculator.calculateStampPixels(
       this.currentStampSize,
-      canvasWidth
+      cssWidth
     );
 
     stampElement.style.width = stampPixels + 'px';
@@ -384,10 +457,33 @@ class StampApp {
    * 处理印章鼠标按下
    */
   handleStampMouseDown(e) {
-    if (e.target.closest('.stamp-layer')) {
+    // 点击删除按钮时不启动拖拽
+    if (e.target.closest('.stamp-delete-btn')) return;
+
+    const resizeHandle = e.target.closest('.resize-handle');
+    if (resizeHandle) {
+      // 开始调整大小
+      this.isResizing = true;
+      this.currentStampElement = resizeHandle.closest('.stamp-layer');
+      this.resizeStart = {
+        width: this.currentStampElement.offsetWidth,
+        height: this.currentStampElement.offsetHeight,
+        x: e.clientX,
+        y: e.clientY
+      };
+      return;
+    }
+
+    const stampLayer = e.target.closest('.stamp-layer');
+
+    if (stampLayer) {
+      // 选中该印章（高亮）
+      this.selectActiveStamp(stampLayer);
+
+      // 拖拽已有印章
       this.isDragging = true;
-      this.currentStampElement = e.target.closest('.stamp-layer');
-      
+      this.currentStampElement = stampLayer;
+
       const rect = this.currentStampElement.getBoundingClientRect();
       this.dragOffset = {
         x: e.clientX - rect.left,
@@ -396,6 +492,40 @@ class StampApp {
 
       this.currentStampElement.style.cursor = 'move';
       this.currentStampElement.style.zIndex = '1000';
+    } else if (this.currentStamp) {
+      // 在 PDF 上放置新印章（CSS 坐标）
+      const container = document.getElementById('canvasContainer');
+      const containerRect = container.getBoundingClientRect();
+
+      const stampPixels = StampSizeCalculator.calculateStampPixels(
+        this.currentStampSize,
+        containerRect.width
+      );
+
+      // 居中于点击位置
+      let x = e.clientX - containerRect.left - stampPixels / 2;
+      let y = e.clientY - containerRect.top - stampPixels / 2;
+
+      // 限制在容器内
+      x = Math.max(0, Math.min(x, containerRect.width - stampPixels));
+      y = Math.max(0, Math.min(y, containerRect.height - stampPixels));
+
+      // 使用 createStampElement 统一创建（含删除按钮、拖拽手柄）
+      const stampEl = this.createStampElement(this.currentStamp.image, {
+        x, y, width: stampPixels, height: stampPixels
+      });
+
+      container.appendChild(stampEl);
+
+      // 开始拖拽（以点击中心为偏移）
+      this.isDragging = true;
+      this.currentStampElement = stampEl;
+      this.selectActiveStamp(stampEl);
+      this.dragOffset = {
+        x: stampPixels / 2,
+        y: stampPixels / 2
+      };
+      stampEl.style.zIndex = '1000';
     }
   }
 
@@ -403,6 +533,23 @@ class StampApp {
    * 处理印章鼠标移动
    */
   handleStampMouseMove(e) {
+    if (this.isResizing && this.currentStampElement) {
+      // 拖拽调整大小（保持等比例正方形）
+      const dx = e.clientX - this.resizeStart.x;
+      const dy = e.clientY - this.resizeStart.y;
+      const newSize = Math.max(20, this.resizeStart.width + Math.max(dx, dy));
+
+      const container = document.getElementById('canvasContainer');
+      const containerRect = container.getBoundingClientRect();
+
+      // 限制不超过容器尺寸
+      const clampedSize = Math.min(newSize, containerRect.width, containerRect.height);
+
+      this.currentStampElement.style.width = clampedSize + 'px';
+      this.currentStampElement.style.height = clampedSize + 'px';
+      return;
+    }
+
     if (!this.isDragging || !this.currentStampElement) return;
 
     const container = document.getElementById('canvasContainer');
@@ -423,38 +570,90 @@ class StampApp {
    * 处理印章鼠标释放
    */
   handleStampMouseUp(e) {
-    if (this.isDragging && this.currentStampElement) {
+    // 无论 resize 还是 drag，结束时都保存位置
+    if (this.isResizing || this.isDragging) {
+      this.isResizing = false;
       this.isDragging = false;
+      this.resizeStart = null;
+    }
+
+    if (this.currentStampElement) {
       this.currentStampElement.style.cursor = 'move';
       this.currentStampElement.style.zIndex = '';
 
-      // 保存印章位置
-      const canvas = document.getElementById('pdfCanvas');
+      // 保存印章位置（CSS 坐标，不含缩放）
       const rect = this.currentStampElement.getBoundingClientRect();
       const containerRect = document.getElementById('canvasContainer').getBoundingClientRect();
 
-      // 考虑 Canvas 缩放
-      const scaleX = canvas.width / containerRect.width;
-      const scaleY = canvas.height / containerRect.height;
-
       const position = {
         page: this.pdfService.currentPage,
-        x: (rect.left - containerRect.left) * scaleX,
-        y: (rect.top - containerRect.top) * scaleY,
-        width: rect.width * scaleX,
-        height: rect.height * scaleY,
+        x: rect.left - containerRect.left,
+        y: rect.top - containerRect.top,
+        width: rect.width,
+        height: rect.height,
         image: this.currentStampElement.querySelector('img').src
       };
 
-      // 更新或添加印章位置
-      const index = parseInt(this.currentStampElement.dataset.index);
-      if (index >= 0) {
-        this.pdfService.stampPositions[index] = position;
+      // 更新或添加印章位置（使用 stampPositions 中的实际索引）
+      const realIndex = parseInt(this.currentStampElement.dataset.realIndex);
+      if (!isNaN(realIndex) && realIndex >= 0) {
+        this.pdfService.stampPositions[realIndex] = position;
       } else {
         this.pdfService.stampPositions.push(position);
+        // 记录索引到 DOM，避免下次拖拽重复新增
+        this.currentStampElement.dataset.realIndex = this.pdfService.stampPositions.length - 1;
       }
 
       this.currentStampElement = null;
+    }
+  }
+
+  /**
+   * 选中印章（高亮）
+   */
+  selectActiveStamp(stampEl) {
+    // 取消旧的选中
+    if (this.activeStampElement && this.activeStampElement !== stampEl) {
+      this.activeStampElement.classList.remove('active');
+    }
+    this.activeStampElement = stampEl;
+    stampEl.classList.add('active');
+  }
+
+  /**
+   * 取消选中
+   */
+  deselectActiveStamp() {
+    if (this.activeStampElement) {
+      this.activeStampElement.classList.remove('active');
+      this.activeStampElement = null;
+    }
+  }
+
+  /**
+   * 从画布上删除印章
+   */
+  removeStampFromCanvas(stampEl) {
+    const realIndex = parseInt(stampEl.dataset.realIndex);
+    if (!isNaN(realIndex) && realIndex >= 0) {
+      this.pdfService.stampPositions.splice(realIndex, 1);
+    }
+    stampEl.remove();
+
+    if (this.activeStampElement === stampEl) {
+      this.activeStampElement = null;
+    }
+
+    // 重新渲染以修正索引
+    this.renderStampsOnCanvas();
+  }
+
+  /**
+   * Delete 键删除选中印章
+   */
+  handleKeyDown(e) {
+    if (e.key === 'Delete' && this.activeStampElement) {
+      this.removeStampFromCanvas(this.activeStampElement);
     }
   }
 
@@ -493,6 +692,7 @@ class StampApp {
       this.pdfService.reset();
       this.currentStamp = null;
       this.currentStampElement = null;
+      this.activeStampElement = null;
 
       document.getElementById('emptyState').classList.remove('hidden');
       document.getElementById('pdfPreview').classList.add('hidden');
