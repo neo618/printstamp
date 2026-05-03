@@ -210,9 +210,15 @@ export class PDFService {
       throw new Error('PDF 文档未加载');
     }
 
+    const PDFLib = await this.loadPDFLib();
+
+    // 从原始文件重新加载 pdfLibDoc，避免多次导出时印章叠加
+    const freshBytes = new Uint8Array(this.originalBytes.byteLength);
+    freshBytes.set(this.originalBytes);
+    this.pdfLibDoc = await PDFLib.PDFDocument.load(freshBytes);
+
     // 如果有印章，嵌入到 PDF
     if (this.stampPositions.length > 0) {
-      const PDFLib = await this.loadPDFLib();
 
       // 计算 CSS 画布与 PDF 坐标之间的转换比例
       // 使用 pdf.js viewport 在 scale=1 时的尺寸作为 CSS 基准
